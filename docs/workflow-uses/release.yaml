@@ -14,6 +14,6 @@ permissions:
 jobs:
   release:
     name: Release
-    uses: wibaek/github-automation/.github/workflows/release.yaml@v1.1
+    uses: wibaek/github-automation/.github/workflows/release.yaml@v1.0
     with:
       release-type: "simple"

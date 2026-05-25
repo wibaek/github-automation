@@ -15,7 +15,7 @@ permissions:
 jobs:
   docker-build-push:
     name: Docker Image Build/Push
-    uses: wibaek/github-automation/.github/workflows/docker-build-push.yaml@v1.1
+    uses: wibaek/github-automation/.github/workflows/docker-build-push.yaml@v1.0
     with:
       image-name: "ghcr.io/${{ github.repository }}"
       context: "."

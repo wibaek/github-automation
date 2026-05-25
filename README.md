@@ -84,13 +84,13 @@ sequenceDiagram
 ```yaml
 jobs:
   node-ci:
-    uses: wibaek/github-automation/.github/workflows/node-ci.yaml@v1.1
+    uses: wibaek/github-automation/.github/workflows/node-ci.yaml@v1.0
 ```
 
 기본 규칙은 다음과 같습니다.
 
 - reusable workflow는 `jobs.<job_id>.uses`로 호출합니다.
-- workflow 버전은 `@v1.1`처럼 tag로 고정합니다.
+- workflow 버전은 `@v1.0`처럼 tag로 고정합니다.
 - 기본 권한은 `contents: read`로 시작합니다.
 - Docker image push에는 registry에 맞는 권한을 추가합니다. GHCR은 `packages: write`, ECR/ECS는 `id-token: write`가 필요합니다.
 - secrets는 호출하는 workflow에서 명시적으로 넘깁니다.
@@ -108,8 +108,8 @@ jobs:
 공용 workflow는 SemVer tag로 배포합니다.
 
 ```bash
-git tag v1.1
-git push origin v1.1
+git tag v1.0
+git push origin v1.0
 ```
 
 이미 배포한 tag는 가능한 한 옮기지 않습니다. 같은 tag가 가리키는 코드가 바뀌면 사용하는 프로젝트의 재현성이 깨집니다.

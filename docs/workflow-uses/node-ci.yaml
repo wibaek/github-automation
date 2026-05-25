@@ -12,7 +12,7 @@ permissions:
 jobs:
   node-ci:
     name: Node.js CI
-    uses: wibaek/github-automation/.github/workflows/node-ci.yaml@v1.1
+    uses: wibaek/github-automation/.github/workflows/node-ci.yaml@v1.0
     with:
       node-version: "22"
       package-manager: "pnpm"

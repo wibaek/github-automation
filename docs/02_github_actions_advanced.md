@@ -29,7 +29,7 @@ GHCR에 이미지를 push하는 최소 예시는 다음과 같습니다.
 ```yaml
 jobs:
   docker-build-push:
-    uses: wibaek/github-automation/.github/workflows/docker-build-push.yaml@v1.1
+    uses: wibaek/github-automation/.github/workflows/docker-build-push.yaml@v1.0
     with:
       image-name: "ghcr.io/${{ github.repository }}"
       context: "."
@@ -43,14 +43,14 @@ jobs:
 ```yaml
 jobs:
   docker-build-push:
-    uses: wibaek/github-automation/.github/workflows/docker-build-push.yaml@v1.1
+    uses: wibaek/github-automation/.github/workflows/docker-build-push.yaml@v1.0
     with:
       image-name: "ghcr.io/${{ github.repository }}"
       cache-scope: "app"
 
   ssh-compose-deploy:
     needs: docker-build-push
-    uses: wibaek/github-automation/.github/workflows/ssh-compose-deploy.yaml@v1.1
+    uses: wibaek/github-automation/.github/workflows/ssh-compose-deploy.yaml@v1.0
     with:
       host: ${{ vars.OCI_HOST }}
       user: ${{ vars.OCI_USER }}

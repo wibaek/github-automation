@@ -13,7 +13,7 @@ permissions:
 jobs:
   docker-build-push:
     name: Docker Image Build/Push
-    uses: wibaek/github-automation/.github/workflows/docker-build-push.yaml@v1.1
+    uses: wibaek/github-automation/.github/workflows/docker-build-push.yaml@v1.0
     with:
       image-name: "${{ vars.AWS_ACCOUNT_ID }}.dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com/my-app"
       context: "."
@@ -30,7 +30,7 @@ jobs:
   ecs-deploy:
     name: ECS Deploy
     needs: docker-build-push
-    uses: wibaek/github-automation/.github/workflows/ecs-deploy.yaml@v1.1
+    uses: wibaek/github-automation/.github/workflows/ecs-deploy.yaml@v1.0
     with:
       aws-region: ${{ vars.AWS_REGION }}
       aws-role-to-assume: ${{ vars.AWS_GITHUB_ACTIONS_ROLE_ARN }}

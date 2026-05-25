@@ -15,5 +15,5 @@
 | `docker-ghcr-ssh-deploy.yaml` | `docker-build-push.yaml`, `ssh-compose-deploy.yaml` | GHCR 이미지 빌드 후 서버 배포 |
 | `ecs-ecr-deploy.yaml` | `docker-build-push.yaml`, `ecs-deploy.yaml` | ECR 이미지 빌드 후 ECS service 배포 |
 
-예시의 `@v1.1`은 배포된 태그에 맞게 바꿔서 사용합니다.
+예시의 `@v1.0`은 배포된 태그에 맞게 바꿔서 사용합니다.
 배포 secret 이름은 프로젝트별 GitHub repository 또는 environment secret에 맞춰 조정합니다.

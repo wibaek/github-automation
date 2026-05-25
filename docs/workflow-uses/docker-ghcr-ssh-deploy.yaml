@@ -13,7 +13,7 @@ permissions:
 jobs:
   docker-build-push:
     name: Docker Image Build/Push
-    uses: wibaek/github-automation/.github/workflows/docker-build-push.yaml@v1.1
+    uses: wibaek/github-automation/.github/workflows/docker-build-push.yaml@v1.0
     with:
       image-name: "ghcr.io/${{ github.repository }}"
       context: "."
@@ -25,7 +25,7 @@ jobs:
   ssh-compose-deploy:
     name: SSH Docker Compose Deploy
     needs: docker-build-push
-    uses: wibaek/github-automation/.github/workflows/ssh-compose-deploy.yaml@v1.1
+    uses: wibaek/github-automation/.github/workflows/ssh-compose-deploy.yaml@v1.0
     with:
       host: ${{ vars.OCI_HOST }}
       port: "22"

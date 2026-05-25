@@ -12,7 +12,7 @@ permissions:
 jobs:
   cloudflare-pages-deploy:
     name: Cloudflare Pages Deploy
-    uses: wibaek/github-automation/.github/workflows/cloudflare-pages-deploy.yaml@v1.1
+    uses: wibaek/github-automation/.github/workflows/cloudflare-pages-deploy.yaml@v1.0
     with:
       environment: "prod"
       environment-url: "https://example.com"

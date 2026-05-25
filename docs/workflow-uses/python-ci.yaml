@@ -12,7 +12,7 @@ permissions:
 jobs:
   python-ci:
     name: Python CI
-    uses: wibaek/github-automation/.github/workflows/python-ci.yaml@v1.1
+    uses: wibaek/github-automation/.github/workflows/python-ci.yaml@v1.0
     with:
       python-version: "3.12"
       python-package-tool: "uv"
