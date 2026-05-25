@@ -12,7 +12,6 @@ github-automation
     └── workflows
         ├── python-ci.yaml
         ├── node-ci.yaml
-        ├── node-build.yaml
         ├── docker-build-push.yaml
         ├── release.yaml
         ├── ecs-deploy.yaml
@@ -23,7 +22,6 @@ github-automation
 | --- | --- |
 | `python-ci.yaml` | Python CI |
 | `node-ci.yaml` | Node.js CI |
-| `node-build.yaml` | 선택적 Node.js build 검증 |
 | `docker-build-push.yaml` | Docker image build/push |
 | `release.yaml` | Release PR, tag, GitHub Release, CHANGELOG |
 | `ecs-deploy.yaml` | ECS service deploy |
@@ -40,9 +38,6 @@ flowchart TD
   ci_choice --> python_ci["python-ci.yaml"]
   node_ci --> merge["merge to main"]
   python_ci --> merge
-
-  node_ci -. optional .-> node_build["node-build.yaml<br/>build check only"]
-  node_build -. gate .-> merge
 
   merge --> deploy_trigger["push main / workflow_dispatch"]
   deploy_trigger --> deploy_choice{"deploy type"}
@@ -98,9 +93,8 @@ jobs:
 - Docker Compose 배포는 `docker-build-push.yaml` 뒤에 `ssh-compose-deploy.yaml`을 붙입니다.
 - ECS 배포는 `docker-build-push.yaml` 뒤에 `ecs-deploy.yaml`을 붙입니다.
 - 배포 job은 `docker-build-push.yaml`의 `image-reference` output을 받아서 같은 이미지를 배포합니다.
+- dev, stage, prod는 같은 deploy workflow를 쓰고 `environment`, host/path/cluster/service 같은 input만 바꿉니다.
 - 릴리즈 관리는 `release.yaml`이 담당하고, Docker build/deploy는 별도 job으로 명시적으로 연결합니다.
-
-`node-build.yaml`은 Docker 배포의 필수 단계가 아닙니다. Dockerfile이 실제 build를 수행하고 `node-ci.yaml`에서 이미 lint/test/typecheck/build를 돌린다면 생략해도 됩니다. 별도 build-only gate가 필요할 때만 사용합니다.
 
 구체적인 caller YAML 예시는 [docs/workflow-uses](docs/workflow-uses)를 봅니다.
 

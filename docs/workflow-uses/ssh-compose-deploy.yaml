@@ -15,6 +15,8 @@ jobs:
       port: "22"
       user: ${{ vars.OCI_USER }}
       known-hosts: ${{ vars.OCI_KNOWN_HOSTS }}
+      environment: "prod"
+      environment-url: "https://example.com"
       project-directory: "/srv/my-app"
       compose-file: "docker-compose.yml"
       env-file: ".env"

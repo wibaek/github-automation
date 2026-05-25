@@ -6,7 +6,6 @@
 | 예시 파일 | 호출하는 workflow | 용도 |
 | --- | --- | --- |
 | `node-ci.yaml` | `.github/workflows/node-ci.yaml` | Node.js, Next.js CI |
-| `node-build.yaml` | `.github/workflows/node-build.yaml` | Node.js, Next.js 빌드 |
 | `python-ci.yaml` | `.github/workflows/python-ci.yaml` | Python CI |
 | `docker-build-push.yaml` | `.github/workflows/docker-build-push.yaml` | Docker 이미지 빌드 및 registry push |
 | `release.yaml` | `.github/workflows/release.yaml` | Release PR, tag, GitHub Release, CHANGELOG |

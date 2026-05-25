@@ -26,6 +26,18 @@ on:
         type: string
         default: "GitHubActions"
 
+      environment:
+        description: "GitHub Environment 이름. 예: dev, stage, prod"
+        required: false
+        type: string
+        default: "prod"
+
+      environment-url:
+        description: "GitHub Environment에 표시할 URL"
+        required: false
+        type: string
+        default: ""
+
       cluster:
         description: "ECS cluster 이름"
         required: true
@@ -148,6 +160,18 @@ on:
         type: number
         default: 45
 
+      concurrency-group:
+        description: "배포 concurrency group. 비워두면 repository와 environment 기준으로 자동 생성."
+        required: false
+        type: string
+        default: ""
+
+      cancel-in-progress:
+        description: "같은 concurrency group의 진행 중인 배포를 취소할지 여부"
+        required: false
+        type: boolean
+        default: false
+
     outputs:
       task-definition-arn:
         description: "등록된 ECS task definition ARN"
@@ -165,6 +189,14 @@ jobs:
     name: ECS Deploy
     runs-on: ${{ inputs.runs-on }}
     timeout-minutes: ${{ inputs.timeout-minutes }}
+
+    environment:
+      name: ${{ inputs.environment }}
+      url: ${{ inputs.environment-url }}
+
+    concurrency:
+      group: ${{ inputs.concurrency-group != '' && inputs.concurrency-group || format('deploy-{0}-{1}', github.repository, inputs.environment) }}
+      cancel-in-progress: ${{ inputs.cancel-in-progress }}
 
     outputs:
       task-definition-arn: ${{ steps.deploy.outputs.task-definition-arn }}
