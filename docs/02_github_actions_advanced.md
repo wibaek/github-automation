@@ -52,16 +52,16 @@ jobs:
     needs: docker-build-push
     uses: wibaek/github-automation/.github/workflows/ssh-compose-deploy.yaml@v1.0
     with:
-      host: ${{ vars.OCI_HOST }}
-      user: ${{ vars.OCI_USER }}
-      known-hosts: ${{ vars.OCI_KNOWN_HOSTS }}
+      host: ${{ vars.HOST }}
+      user: ${{ vars.USER }}
+      known-hosts: ${{ vars.KNOWN_HOSTS }}
       project-directory: "/srv/my-app"
       registry-login: true
       image-reference: ${{ needs.docker-build-push.outputs.image-reference }}
       healthcheck-url: "http://127.0.0.1:8000/health"
     secrets:
-      SSH_PRIVATE_KEY: ${{ secrets.OCI_SSH_PRIVATE_KEY }}
-      REGISTRY_PASSWORD: ${{ secrets.GHCR_READ_TOKEN }}
+      SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+      REGISTRY_PASSWORD: ${{ secrets.REGISTRY_PASSWORD }}
 ```
 
 서버 compose 파일에서는 `IMAGE_TAG`, `IMAGE_DIGEST`, `IMAGE_REF` 환경 변수를 사용할 수 있습니다. 가능하면 `IMAGE_REF` 하나만 쓰는 편이 가장 단순합니다.

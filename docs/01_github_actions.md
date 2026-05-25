@@ -447,11 +447,11 @@ jobs:
   deploy:
     uses: wibaek/github-automation/.github/workflows/ssh-compose-deploy.yaml@v1.0
     with:
-      host: ${{ vars.DEPLOY_HOST }}
-      user: ${{ vars.DEPLOY_USER }}
+      host: ${{ vars.HOST }}
+      user: ${{ vars.USER }}
       project-directory: "/srv/my-app"
     secrets:
-      SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
+      SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
 ```
 
 ## CI 예시
@@ -535,14 +535,14 @@ jobs:
     needs: docker-build-push
     uses: wibaek/github-automation/.github/workflows/ssh-compose-deploy.yaml@v1.0
     with:
-      host: ${{ vars.DEPLOY_HOST }}
-      user: ${{ vars.DEPLOY_USER }}
+      host: ${{ vars.HOST }}
+      user: ${{ vars.USER }}
       environment: "prod"
       environment-url: "https://example.com"
       project-directory: "/srv/my-app"
       image-reference: ${{ needs.docker-build-push.outputs.image-reference }}
     secrets:
-      SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
+      SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
 ```
 
 dev, stage, prod는 같은 reusable workflow를 호출하되 `environment`, host, path, cluster, service 같은 input만 환경별로 바꿉니다.
