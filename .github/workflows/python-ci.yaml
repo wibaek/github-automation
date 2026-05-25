@@ -1,0 +1,170 @@
+name: Python CI
+
+on:
+  workflow_call:
+    inputs:
+      python-version:
+        description: "사용할 Python 버전"
+        required: false
+        type: string
+        default: "3.12"
+
+      # runs-on label 참고: https://docs.github.com/en/actions/reference/runners/github-hosted-runners
+      runs-on:
+        description: "실행할 러너 라벨"
+        required: false
+        type: string
+        default: "ubuntu-latest"
+
+      working-directory:
+        description: "명령어를 실행할 작업 디렉터리"
+        required: false
+        type: string
+        default: "."
+
+      python-package-tool:
+        description: "Python 패키지 도구. pip, uv, poetry 중 하나"
+        required: false
+        type: string
+        default: "uv"
+
+      install-command:
+        description: "의존성 설치 명령어. auto면 python-package-tool 기준으로 자동 실행."
+        required: false
+        type: string
+        default: "auto"
+
+      lint-command:
+        description: "린트 명령어. 비워두면 실행하지 않음."
+        required: false
+        type: string
+        default: ""
+
+      typecheck-command:
+        description: "타입 검사 명령어. 비워두면 실행하지 않음."
+        required: false
+        type: string
+        default: ""
+
+      test-command:
+        description: "테스트 명령어. auto면 python-package-tool 기준으로 자동 실행, 빈 문자열이면 실행하지 않음."
+        required: false
+        type: string
+        default: "auto"
+
+      cache:
+        description: "setup-python 캐시 방식. pip, pipenv, poetry 중 하나"
+        required: false
+        type: string
+        default: "pip"
+
+      cache-dependency-path:
+        description: "캐시 무효화 기준이 되는 의존성 파일 경로. 비워두면 setup-python 기본값 사용."
+        required: false
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Python CI
+    runs-on: ${{ inputs.runs-on }}
+
+    defaults:
+      run:
+        shell: bash
+        working-directory: ${{ inputs.working-directory }}
+
+    steps:
+      - name: 코드 체크아웃
+        uses: actions/checkout@v6
+
+      - name: Python 패키지 도구 검증
+        run: |
+          case "${{ inputs.python-package-tool }}" in
+            pip|uv|poetry)
+              ;;
+            *)
+              echo "지원하지 않는 python-package-tool: ${{ inputs.python-package-tool }}"
+              exit 1
+              ;;
+          esac
+
+      - name: Python 설정
+        if: ${{ inputs.python-package-tool == 'uv' }}
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ inputs.python-version }}
+
+      - name: Python 설정
+        if: ${{ inputs.python-package-tool != 'uv' && inputs.cache-dependency-path == '' }}
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ inputs.python-version }}
+          cache: ${{ inputs.cache }}
+
+      - name: Python 설정 및 캐시 기준 파일 지정
+        if: ${{ inputs.python-package-tool != 'uv' && inputs.cache-dependency-path != '' }}
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ inputs.python-version }}
+          cache: ${{ inputs.cache }}
+          cache-dependency-path: ${{ inputs.cache-dependency-path }}
+
+      - name: uv 설정
+        if: ${{ inputs.python-package-tool == 'uv' }}
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b
+        with:
+          enable-cache: true
+          cache-dependency-glob: ${{ inputs.cache-dependency-path != '' && inputs.cache-dependency-path || 'uv.lock' }}
+
+      - name: 의존성 자동 설치
+        if: ${{ inputs.install-command == 'auto' }}
+        run: |
+          case "${{ inputs.python-package-tool }}" in
+            pip)
+              python -m pip install --upgrade pip
+              pip install -r requirements.txt
+              ;;
+            uv)
+              uv sync --frozen
+              ;;
+            poetry)
+              python -m pip install --upgrade pip
+              pip install poetry
+              poetry install --no-interaction
+              ;;
+          esac
+
+      - name: 사용자 지정 의존성 설치 명령어 실행
+        if: ${{ inputs.install-command != '' && inputs.install-command != 'auto' }}
+        run: ${{ inputs.install-command }}
+
+      - name: 린트 실행
+        if: ${{ inputs.lint-command != '' }}
+        run: ${{ inputs.lint-command }}
+
+      - name: 타입 검사 실행
+        if: ${{ inputs.typecheck-command != '' }}
+        run: ${{ inputs.typecheck-command }}
+
+      - name: 테스트 자동 실행
+        if: ${{ inputs.test-command == 'auto' }}
+        run: |
+          case "${{ inputs.python-package-tool }}" in
+            pip)
+              pytest -q
+              ;;
+            uv)
+              uv run pytest -q
+              ;;
+            poetry)
+              poetry run pytest -q
+              ;;
+          esac
+
+      - name: 사용자 지정 테스트 실행
+        if: ${{ inputs.test-command != '' && inputs.test-command != 'auto' }}
+        run: ${{ inputs.test-command }}

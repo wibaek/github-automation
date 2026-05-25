@@ -1,0 +1,220 @@
+name: ECS Deploy
+
+on:
+  workflow_call:
+    inputs:
+      # runs-on label 참고: https://docs.github.com/en/actions/reference/runners/github-hosted-runners
+      runs-on:
+        description: "실행할 러너 라벨"
+        required: false
+        type: string
+        default: "ubuntu-latest"
+
+      aws-region:
+        description: "AWS region"
+        required: true
+        type: string
+
+      aws-role-to-assume:
+        description: "GitHub OIDC로 assume할 AWS IAM role ARN"
+        required: true
+        type: string
+
+      aws-role-session-name:
+        description: "AWS role session name"
+        required: false
+        type: string
+        default: "GitHubActions"
+
+      cluster:
+        description: "ECS cluster 이름"
+        required: true
+        type: string
+
+      service:
+        description: "ECS service 이름"
+        required: true
+        type: string
+
+      task-definition:
+        description: "ECS task definition JSON 파일 경로"
+        required: false
+        type: string
+        default: ""
+
+      task-definition-arn:
+        description: "기존 ECS task definition ARN"
+        required: false
+        type: string
+        default: ""
+
+      task-definition-family:
+        description: "기존 ECS task definition family"
+        required: false
+        type: string
+        default: ""
+
+      task-definition-revision:
+        description: "기존 ECS task definition revision"
+        required: false
+        type: string
+        default: ""
+
+      container-name:
+        description: "image를 교체할 ECS container 이름"
+        required: true
+        type: string
+
+      image:
+        description: "ECS task definition에 넣을 container image URI"
+        required: true
+        type: string
+
+      environment-variables:
+        description: "container environment variables. KEY=value multi-line 형식."
+        required: false
+        type: string
+        default: ""
+
+      container-secrets:
+        description: "ECS container secrets. KEY=valueFrom multi-line 형식."
+        required: false
+        type: string
+        default: ""
+
+      docker-labels:
+        description: "container docker labels. KEY=value multi-line 형식."
+        required: false
+        type: string
+        default: ""
+
+      command:
+        description: "container command override"
+        required: false
+        type: string
+        default: ""
+
+      wait-for-service-stability:
+        description: "ECS service stable 상태까지 기다릴지 여부"
+        required: false
+        type: boolean
+        default: true
+
+      wait-for-minutes:
+        description: "service stability 대기 시간"
+        required: false
+        type: string
+        default: "30"
+
+      force-new-deployment:
+        description: "ECS service force new deployment 여부"
+        required: false
+        type: boolean
+        default: false
+
+      enable-ecs-managed-tags:
+        description: "ECS managed tags 활성화 여부"
+        required: false
+        type: boolean
+        default: false
+
+      propagate-tags:
+        description: "ECS propagate-tags 값. 예: SERVICE"
+        required: false
+        type: string
+        default: ""
+
+      codedeploy-appspec:
+        description: "CODE_DEPLOY controller용 AppSpec 파일 경로"
+        required: false
+        type: string
+        default: ""
+
+      codedeploy-application:
+        description: "CODE_DEPLOY controller용 CodeDeploy application 이름"
+        required: false
+        type: string
+        default: ""
+
+      codedeploy-deployment-group:
+        description: "CODE_DEPLOY controller용 deployment group 이름"
+        required: false
+        type: string
+        default: ""
+
+      timeout-minutes:
+        description: "job 제한 시간"
+        required: false
+        type: number
+        default: 45
+
+    outputs:
+      task-definition-arn:
+        description: "등록된 ECS task definition ARN"
+        value: ${{ jobs.deploy.outputs.task-definition-arn }}
+      codedeploy-deployment-id:
+        description: "CodeDeploy deployment ID"
+        value: ${{ jobs.deploy.outputs.codedeploy-deployment-id }}
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    name: ECS Deploy
+    runs-on: ${{ inputs.runs-on }}
+    timeout-minutes: ${{ inputs.timeout-minutes }}
+
+    outputs:
+      task-definition-arn: ${{ steps.deploy.outputs.task-definition-arn }}
+      codedeploy-deployment-id: ${{ steps.deploy.outputs.codedeploy-deployment-id }}
+
+    steps:
+      - name: ECS 설정 검증
+        run: |
+          if [ -z "${{ inputs.task-definition }}" ] && [ -z "${{ inputs.task-definition-arn }}" ] && [ -z "${{ inputs.task-definition-family }}" ]; then
+            echo "task-definition, task-definition-arn, task-definition-family 중 하나는 필요합니다."
+            exit 1
+          fi
+
+      - name: 코드 체크아웃
+        uses: actions/checkout@v6
+
+      - name: AWS 자격 증명 설정
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          aws-region: ${{ inputs.aws-region }}
+          role-to-assume: ${{ inputs.aws-role-to-assume }}
+          role-session-name: ${{ inputs.aws-role-session-name }}
+
+      - name: ECS task definition 렌더링
+        id: render
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: ${{ inputs.task-definition }}
+          task-definition-arn: ${{ inputs.task-definition-arn }}
+          task-definition-family: ${{ inputs.task-definition-family }}
+          task-definition-revision: ${{ inputs.task-definition-revision }}
+          container-name: ${{ inputs.container-name }}
+          image: ${{ inputs.image }}
+          environment-variables: ${{ inputs.environment-variables }}
+          secrets: ${{ inputs.container-secrets }}
+          docker-labels: ${{ inputs.docker-labels }}
+          command: ${{ inputs.command }}
+
+      - name: ECS service 배포
+        id: deploy
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+        with:
+          task-definition: ${{ steps.render.outputs.task-definition }}
+          service: ${{ inputs.service }}
+          cluster: ${{ inputs.cluster }}
+          wait-for-service-stability: ${{ inputs.wait-for-service-stability }}
+          wait-for-minutes: ${{ inputs.wait-for-minutes }}
+          force-new-deployment: ${{ inputs.force-new-deployment }}
+          enable-ecs-managed-tags: ${{ inputs.enable-ecs-managed-tags }}
+          propagate-tags: ${{ inputs.propagate-tags }}
+          codedeploy-appspec: ${{ inputs.codedeploy-appspec }}
+          codedeploy-application: ${{ inputs.codedeploy-application }}
+          codedeploy-deployment-group: ${{ inputs.codedeploy-deployment-group }}

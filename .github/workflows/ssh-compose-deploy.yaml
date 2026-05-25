@@ -1,0 +1,309 @@
+name: SSH Docker Compose Deploy
+
+on:
+  workflow_call:
+    inputs:
+      # runs-on label 참고: https://docs.github.com/en/actions/reference/runners/github-hosted-runners
+      runs-on:
+        description: "실행할 러너 라벨"
+        required: false
+        type: string
+        default: "ubuntu-latest"
+
+      host:
+        description: "배포 대상 SSH host"
+        required: true
+        type: string
+
+      port:
+        description: "배포 대상 SSH port"
+        required: false
+        type: string
+        default: "22"
+
+      user:
+        description: "배포 대상 SSH user"
+        required: true
+        type: string
+
+      known-hosts:
+        description: "고정 known_hosts 값. 비워두면 ssh-keyscan으로 등록."
+        required: false
+        type: string
+        default: ""
+
+      project-directory:
+        description: "서버의 compose 프로젝트 디렉터리"
+        required: true
+        type: string
+
+      compose-file:
+        description: "서버 project-directory 기준 compose file 경로"
+        required: false
+        type: string
+        default: "docker-compose.yml"
+
+      env-file:
+        description: "서버 project-directory 기준 compose env file 경로. 비워두면 사용하지 않음."
+        required: false
+        type: string
+        default: ""
+
+      compose-command:
+        description: "서버에서 사용할 compose 명령어"
+        required: false
+        type: string
+        default: "docker compose"
+
+      compose-profiles:
+        description: "COMPOSE_PROFILES 값. 비워두면 지정하지 않음."
+        required: false
+        type: string
+        default: ""
+
+      image-tag:
+        description: "서버 compose에서 IMAGE_TAG로 사용할 값. 비워두면 github.sha 사용."
+        required: false
+        type: string
+        default: ""
+
+      image-digest:
+        description: "서버 compose에서 IMAGE_DIGEST로 사용할 값"
+        required: false
+        type: string
+        default: ""
+
+      image-reference:
+        description: "서버 compose에서 IMAGE_REF로 사용할 값"
+        required: false
+        type: string
+        default: ""
+
+      registry-login:
+        description: "서버에서 docker login을 수행할지 여부"
+        required: false
+        type: boolean
+        default: false
+
+      registry:
+        description: "서버에서 로그인할 registry"
+        required: false
+        type: string
+        default: "ghcr.io"
+
+      registry-username:
+        description: "서버에서 registry 로그인에 사용할 사용자명. 비워두면 github.actor 사용."
+        required: false
+        type: string
+        default: ""
+
+      pull-images:
+        description: "docker compose up 전에 docker compose pull을 실행할지 여부"
+        required: false
+        type: boolean
+        default: true
+
+      remove-orphans:
+        description: "docker compose up에 --remove-orphans를 붙일지 여부"
+        required: false
+        type: boolean
+        default: true
+
+      pre-deploy-command:
+        description: "compose pull/up 전에 서버 project-directory에서 실행할 명령어"
+        required: false
+        type: string
+        default: ""
+
+      post-deploy-command:
+        description: "healthcheck 이후 서버 project-directory에서 실행할 명령어"
+        required: false
+        type: string
+        default: ""
+
+      healthcheck-url:
+        description: "서버에서 curl로 확인할 healthcheck URL. 비워두면 확인하지 않음."
+        required: false
+        type: string
+        default: ""
+
+      healthcheck-timeout-seconds:
+        description: "healthcheck 제한 시간"
+        required: false
+        type: string
+        default: "120"
+
+      healthcheck-interval-seconds:
+        description: "healthcheck 재시도 간격"
+        required: false
+        type: string
+        default: "5"
+
+      timeout-minutes:
+        description: "job 제한 시간"
+        required: false
+        type: number
+        default: 15
+
+    secrets:
+      SSH_PRIVATE_KEY:
+        required: true
+      REGISTRY_PASSWORD:
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: SSH Docker Compose Deploy
+    runs-on: ${{ inputs.runs-on }}
+    timeout-minutes: ${{ inputs.timeout-minutes }}
+
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: SSH 설정
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_HOST: ${{ inputs.host }}
+          SSH_PORT: ${{ inputs.port }}
+          KNOWN_HOSTS: ${{ inputs.known-hosts }}
+        run: |
+          set -euo pipefail
+
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+
+          if [ -n "$KNOWN_HOSTS" ]; then
+            printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          else
+            ssh-keyscan -p "$SSH_PORT" -H "$SSH_HOST" > ~/.ssh/known_hosts
+          fi
+
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: 서버 registry 로그인
+        if: ${{ inputs.registry-login }}
+        env:
+          SSH_HOST: ${{ inputs.host }}
+          SSH_PORT: ${{ inputs.port }}
+          SSH_USER: ${{ inputs.user }}
+          REGISTRY: ${{ inputs.registry }}
+          REGISTRY_USERNAME: ${{ inputs.registry-username != '' && inputs.registry-username || github.actor }}
+          REGISTRY_PASSWORD: ${{ secrets.REGISTRY_PASSWORD }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "$REGISTRY_PASSWORD" ]; then
+            echo "registry-login이 true이면 REGISTRY_PASSWORD secret이 필요합니다."
+            exit 1
+          fi
+
+          registry=$(printf '%q' "$REGISTRY")
+          registry_username=$(printf '%q' "$REGISTRY_USERNAME")
+
+          printf '%s' "$REGISTRY_PASSWORD" | ssh \
+            -i ~/.ssh/deploy_key \
+            -p "$SSH_PORT" \
+            -o StrictHostKeyChecking=yes \
+            "$SSH_USER@$SSH_HOST" \
+            "docker login $registry -u $registry_username --password-stdin"
+
+      - name: Docker Compose 배포
+        env:
+          SSH_HOST: ${{ inputs.host }}
+          SSH_PORT: ${{ inputs.port }}
+          SSH_USER: ${{ inputs.user }}
+          PROJECT_DIRECTORY: ${{ inputs.project-directory }}
+          COMPOSE_FILE: ${{ inputs.compose-file }}
+          ENV_FILE: ${{ inputs.env-file }}
+          COMPOSE_COMMAND: ${{ inputs.compose-command }}
+          COMPOSE_PROFILES_VALUE: ${{ inputs.compose-profiles }}
+          IMAGE_TAG: ${{ inputs.image-tag != '' && inputs.image-tag || github.sha }}
+          IMAGE_DIGEST: ${{ inputs.image-digest }}
+          IMAGE_REF: ${{ inputs.image-reference }}
+          PULL_IMAGES: ${{ inputs.pull-images }}
+          REMOVE_ORPHANS: ${{ inputs.remove-orphans }}
+          PRE_DEPLOY_COMMAND: ${{ inputs.pre-deploy-command }}
+          POST_DEPLOY_COMMAND: ${{ inputs.post-deploy-command }}
+          HEALTHCHECK_URL: ${{ inputs.healthcheck-url }}
+          HEALTHCHECK_TIMEOUT_SECONDS: ${{ inputs.healthcheck-timeout-seconds }}
+          HEALTHCHECK_INTERVAL_SECONDS: ${{ inputs.healthcheck-interval-seconds }}
+        run: |
+          set -euo pipefail
+
+          remote_env=$(printf 'PROJECT_DIRECTORY=%q COMPOSE_FILE=%q ENV_FILE=%q COMPOSE_COMMAND=%q COMPOSE_PROFILES=%q IMAGE_TAG=%q IMAGE_DIGEST=%q IMAGE_REF=%q PULL_IMAGES=%q REMOVE_ORPHANS=%q PRE_DEPLOY_COMMAND=%q POST_DEPLOY_COMMAND=%q HEALTHCHECK_URL=%q HEALTHCHECK_TIMEOUT_SECONDS=%q HEALTHCHECK_INTERVAL_SECONDS=%q' \
+            "$PROJECT_DIRECTORY" \
+            "$COMPOSE_FILE" \
+            "$ENV_FILE" \
+            "$COMPOSE_COMMAND" \
+            "$COMPOSE_PROFILES_VALUE" \
+            "$IMAGE_TAG" \
+            "$IMAGE_DIGEST" \
+            "$IMAGE_REF" \
+            "$PULL_IMAGES" \
+            "$REMOVE_ORPHANS" \
+            "$PRE_DEPLOY_COMMAND" \
+            "$POST_DEPLOY_COMMAND" \
+            "$HEALTHCHECK_URL" \
+            "$HEALTHCHECK_TIMEOUT_SECONDS" \
+            "$HEALTHCHECK_INTERVAL_SECONDS")
+
+          ssh \
+            -i ~/.ssh/deploy_key \
+            -p "$SSH_PORT" \
+            -o StrictHostKeyChecking=yes \
+            "$SSH_USER@$SSH_HOST" \
+            "$remote_env bash -se" <<'REMOTE'
+          set -euo pipefail
+
+          cd "$PROJECT_DIRECTORY"
+
+          compose_args=(-f "$COMPOSE_FILE")
+          if [ -n "$ENV_FILE" ]; then
+            compose_args+=(--env-file "$ENV_FILE")
+          fi
+
+          export COMPOSE_PROFILES
+          export IMAGE_TAG
+          export IMAGE_DIGEST
+          export IMAGE_REF
+
+          if [ -n "$PRE_DEPLOY_COMMAND" ]; then
+            bash -lc "$PRE_DEPLOY_COMMAND"
+          fi
+
+          if [ "$PULL_IMAGES" = "true" ]; then
+            $COMPOSE_COMMAND "${compose_args[@]}" pull
+          fi
+
+          up_args=(up -d --no-build)
+          if [ "$REMOVE_ORPHANS" = "true" ]; then
+            up_args+=(--remove-orphans)
+          fi
+
+          $COMPOSE_COMMAND "${compose_args[@]}" "${up_args[@]}"
+
+          if [ -n "$HEALTHCHECK_URL" ]; then
+            deadline=$((SECONDS + HEALTHCHECK_TIMEOUT_SECONDS))
+            until curl -fsS "$HEALTHCHECK_URL" >/dev/null; do
+              if [ "$SECONDS" -ge "$deadline" ]; then
+                echo "healthcheck 실패: $HEALTHCHECK_URL"
+                $COMPOSE_COMMAND "${compose_args[@]}" ps || true
+                $COMPOSE_COMMAND "${compose_args[@]}" logs --tail=100 || true
+                exit 1
+              fi
+              sleep "$HEALTHCHECK_INTERVAL_SECONDS"
+            done
+          fi
+
+          if [ -n "$POST_DEPLOY_COMMAND" ]; then
+            bash -lc "$POST_DEPLOY_COMMAND"
+          fi
+          REMOTE

@@ -1,0 +1,19 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  release:
+    name: Release
+    uses: wibaek/github-automation/.github/workflows/release.yaml@v1.2.0
+    with:
+      release-type: "simple"

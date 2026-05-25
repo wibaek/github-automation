@@ -1,0 +1,42 @@
+name: ECR Image Build/Push and ECS Deploy
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  docker-build-push:
+    name: Docker Image Build/Push
+    uses: wibaek/github-automation/.github/workflows/docker-build-push.yaml@v1.2.0
+    with:
+      image-name: "${{ vars.AWS_ACCOUNT_ID }}.dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com/my-app"
+      context: "."
+      dockerfile: "./Dockerfile"
+      platforms: "linux/amd64"
+      tags: |
+        type=raw,value=${{ github.sha }}
+      ecr-login: true
+      aws-region: ${{ vars.AWS_REGION }}
+      aws-role-to-assume: ${{ vars.AWS_GITHUB_ACTIONS_ROLE_ARN }}
+      cache-type: "gha"
+      cache-scope: "my-app"
+
+  ecs-deploy:
+    name: ECS Deploy
+    needs: docker-build-push
+    uses: wibaek/github-automation/.github/workflows/ecs-deploy.yaml@v1.2.0
+    with:
+      aws-region: ${{ vars.AWS_REGION }}
+      aws-role-to-assume: ${{ vars.AWS_GITHUB_ACTIONS_ROLE_ARN }}
+      cluster: "my-cluster"
+      service: "my-service"
+      task-definition: "ops/ecs/task-definition.json"
+      container-name: "app"
+      image: ${{ needs.docker-build-push.outputs.image-reference }}
+      wait-for-service-stability: true

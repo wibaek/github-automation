@@ -1,0 +1,22 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  python-ci:
+    name: Python CI
+    uses: wibaek/github-automation/.github/workflows/python-ci.yaml@v1.1.0
+    with:
+      python-version: "3.12"
+      python-package-tool: "uv"
+      lint-command: "uv run ruff check ."
+      typecheck-command: ""
+      test-command: "auto"
+      cache-dependency-path: "uv.lock"

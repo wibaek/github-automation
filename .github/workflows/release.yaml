@@ -1,0 +1,147 @@
+name: Release
+
+on:
+  workflow_call:
+    inputs:
+      # runs-on label 참고: https://docs.github.com/en/actions/reference/runners/github-hosted-runners
+      runs-on:
+        description: "실행할 러너 라벨"
+        required: false
+        type: string
+        default: "ubuntu-latest"
+
+      release-type:
+        description: "release-please release type. manifest config를 쓰면 빈 문자열로 둠."
+        required: false
+        type: string
+        default: "simple"
+
+      path:
+        description: "릴리즈 대상 경로. repository root이면 비워둠."
+        required: false
+        type: string
+        default: ""
+
+      target-branch:
+        description: "release PR을 만들 대상 브랜치. 비워두면 release-please가 감지."
+        required: false
+        type: string
+        default: ""
+
+      config-file:
+        description: "release-please config 파일 경로"
+        required: false
+        type: string
+        default: ""
+
+      manifest-file:
+        description: "release-please manifest 파일 경로"
+        required: false
+        type: string
+        default: ""
+
+      include-component-in-tag:
+        description: "tag와 branch에 component 이름을 포함할지 여부"
+        required: false
+        type: boolean
+        default: false
+
+      versioning-strategy:
+        description: "release-please versioning strategy"
+        required: false
+        type: string
+        default: "default"
+
+      release-as:
+        description: "강제로 릴리즈할 버전. 비워두면 Conventional Commits 기준으로 계산."
+        required: false
+        type: string
+        default: ""
+
+      timeout-minutes:
+        description: "job 제한 시간"
+        required: false
+        type: number
+        default: 15
+
+    secrets:
+      RELEASE_TOKEN:
+        required: false
+
+    outputs:
+      release-created:
+        description: "root component release 생성 여부"
+        value: ${{ jobs.release.outputs.release-created }}
+      releases-created:
+        description: "release 생성 여부"
+        value: ${{ jobs.release.outputs.releases-created }}
+      prs-created:
+        description: "release PR 생성 또는 갱신 여부"
+        value: ${{ jobs.release.outputs.prs-created }}
+      tag-name:
+        description: "생성된 release tag"
+        value: ${{ jobs.release.outputs.tag-name }}
+      version:
+        description: "생성된 release version"
+        value: ${{ jobs.release.outputs.version }}
+      major:
+        description: "생성된 major version"
+        value: ${{ jobs.release.outputs.major }}
+      minor:
+        description: "생성된 minor version"
+        value: ${{ jobs.release.outputs.minor }}
+      patch:
+        description: "생성된 patch version"
+        value: ${{ jobs.release.outputs.patch }}
+      sha:
+        description: "release tag가 가리키는 SHA"
+        value: ${{ jobs.release.outputs.sha }}
+      html-url:
+        description: "GitHub Release URL"
+        value: ${{ jobs.release.outputs.html-url }}
+      paths-released:
+        description: "release된 path 목록 JSON"
+        value: ${{ jobs.release.outputs.paths-released }}
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  release:
+    name: Release
+    runs-on: ${{ inputs.runs-on }}
+    timeout-minutes: ${{ inputs.timeout-minutes }}
+
+    concurrency:
+      group: release-${{ github.repository }}-${{ github.ref_name }}
+      cancel-in-progress: false
+
+    outputs:
+      release-created: ${{ steps.release.outputs.release_created }}
+      releases-created: ${{ steps.release.outputs.releases_created }}
+      prs-created: ${{ steps.release.outputs.prs_created }}
+      tag-name: ${{ steps.release.outputs.tag_name }}
+      version: ${{ steps.release.outputs.version }}
+      major: ${{ steps.release.outputs.major }}
+      minor: ${{ steps.release.outputs.minor }}
+      patch: ${{ steps.release.outputs.patch }}
+      sha: ${{ steps.release.outputs.sha }}
+      html-url: ${{ steps.release.outputs.html_url }}
+      paths-released: ${{ steps.release.outputs.paths_released }}
+
+    steps:
+      - name: Release Please 실행
+        id: release
+        uses: googleapis/release-please-action@v4
+        with:
+          token: ${{ secrets.RELEASE_TOKEN != '' && secrets.RELEASE_TOKEN || github.token }}
+          release-type: ${{ inputs.release-type }}
+          path: ${{ inputs.path }}
+          target-branch: ${{ inputs.target-branch }}
+          config-file: ${{ inputs.config-file }}
+          manifest-file: ${{ inputs.manifest-file }}
+          include-component-in-tag: ${{ inputs.include-component-in-tag }}
+          versioning-strategy: ${{ inputs.versioning-strategy }}
+          release-as: ${{ inputs.release-as }}
