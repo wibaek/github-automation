@@ -1,16 +1,24 @@
-name: SSH Compose Deploy With Server Registry Pull
+name: SSH Compose Image Load Deploy
 
 on:
   workflow_dispatch:
+    inputs:
+      image-reference:
+        description: "배포할 image reference. 예: ghcr.io/owner/app@sha256:..."
+        required: true
+        type: string
 
 permissions:
   contents: read
+  packages: read
 
 jobs:
-  ssh-compose-deploy:
-    name: SSH Docker Compose Deploy
-    uses: wibaek/github-automation/.github/workflows/ssh-compose-deploy.yaml@v1.0
+  ssh-compose-image-load-deploy:
+    name: SSH Docker Compose Image Load Deploy
+    uses: wibaek/github-automation/.github/workflows/ssh-compose-image-load-deploy.yaml@v1.0
     with:
+      registry: "ghcr.io"
+      image-reference: ${{ inputs.image-reference }}
       host: ${{ vars.HOST }}
       port: "22"
       user: ${{ vars.USER }}
@@ -21,12 +29,9 @@ jobs:
       compose-source-file: "docker-compose.yml"
       compose-file: "docker-compose.yml"
       env-file: ".env"
-      registry-login: true
-      registry: ${{ vars.REGISTRY }}
-      registry-username: ${{ vars.REGISTRY_USERNAME }}
-      image-tag: ${{ github.sha }}
+      local-image-name: "my-app"
+      service: "app"
       healthcheck-url: "http://127.0.0.1:8000/health"
     secrets:
       SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-      REGISTRY_PASSWORD: ${{ secrets.REGISTRY_PASSWORD }}
       ENV_FILE_CONTENT: ${{ secrets.ENV_FILE_CONTENT }}

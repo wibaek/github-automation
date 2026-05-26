@@ -97,7 +97,7 @@ on:
         default: "docker-compose.yml"
 
       env-file:
-        description: "서버 project-directory 기준 compose env file 경로. 비워두면 사용하지 않음."
+        description: "서버 project-directory 기준 compose env file 경로. ENV_FILE_CONTENT secret이 있으면 이 경로로 업로드."
         required: false
         type: string
         default: ""
@@ -179,6 +179,8 @@ on:
         required: true
       REGISTRY_PASSWORD:
         required: false
+      ENV_FILE_CONTENT:
+        required: false
 
 permissions:
   contents: read
@@ -209,6 +211,8 @@ jobs:
           REGISTRY_PASSWORD: ${{ secrets.REGISTRY_PASSWORD }}
           IMAGE_REFERENCE: ${{ inputs.image-reference }}
           COMPOSE_FILE: ${{ inputs.compose-file }}
+          ENV_FILE: ${{ inputs.env-file }}
+          ENV_FILE_CONTENT: ${{ secrets.ENV_FILE_CONTENT }}
         run: |
           set -euo pipefail
 
@@ -219,6 +223,16 @@ jobs:
 
           if [ "${COMPOSE_FILE#/}" != "$COMPOSE_FILE" ]; then
             echo "compose-file은 project-directory 기준 상대 경로여야 합니다: $COMPOSE_FILE"
+            exit 1
+          fi
+
+          if [ -n "$ENV_FILE" ] && [ "${ENV_FILE#/}" != "$ENV_FILE" ]; then
+            echo "env-file은 project-directory 기준 상대 경로여야 합니다: $ENV_FILE"
+            exit 1
+          fi
+
+          if [ -n "$ENV_FILE_CONTENT" ] && [ -z "$ENV_FILE" ]; then
+            echo "ENV_FILE_CONTENT secret을 사용하려면 env-file input이 필요합니다."
             exit 1
           fi
 
@@ -317,12 +331,14 @@ jobs:
           SSH_USER: ${{ inputs.user }}
           PROJECT_DIRECTORY: ${{ inputs.project-directory }}
           COMPOSE_FILE: ${{ inputs.compose-file }}
+          ENV_FILE: ${{ inputs.env-file }}
         run: |
           set -euo pipefail
 
-          remote_env=$(printf 'PROJECT_DIRECTORY=%q COMPOSE_FILE=%q' \
+          remote_env=$(printf 'PROJECT_DIRECTORY=%q COMPOSE_FILE=%q ENV_FILE=%q' \
             "$PROJECT_DIRECTORY" \
-            "$COMPOSE_FILE")
+            "$COMPOSE_FILE" \
+            "$ENV_FILE")
 
           ssh \
             -i ~/.ssh/deploy_key \
@@ -337,6 +353,13 @@ jobs:
           compose_dir="$(dirname "$COMPOSE_FILE")"
           if [ "$compose_dir" != "." ]; then
             mkdir -p "$PROJECT_DIRECTORY/$compose_dir"
+          fi
+
+          if [ -n "$ENV_FILE" ]; then
+            env_dir="$(dirname "$ENV_FILE")"
+            if [ "$env_dir" != "." ]; then
+              mkdir -p "$PROJECT_DIRECTORY/$env_dir"
+            fi
           fi
           REMOTE
 
@@ -357,6 +380,47 @@ jobs:
             -o StrictHostKeyChecking=yes \
             "$COMPOSE_SOURCE_FILE" \
             "$SSH_USER@$SSH_HOST:$PROJECT_DIRECTORY/$COMPOSE_FILE"
+
+      - name: Env 파일 업로드
+        env:
+          SSH_HOST: ${{ inputs.host }}
+          SSH_PORT: ${{ inputs.port }}
+          SSH_USER: ${{ inputs.user }}
+          PROJECT_DIRECTORY: ${{ inputs.project-directory }}
+          ENV_FILE: ${{ inputs.env-file }}
+          ENV_FILE_CONTENT: ${{ secrets.ENV_FILE_CONTENT }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "$ENV_FILE_CONTENT" ]; then
+            exit 0
+          fi
+
+          env_file_tmp="$(mktemp)"
+          trap 'rm -f "$env_file_tmp"' EXIT
+          chmod 600 "$env_file_tmp"
+          printf '%s' "$ENV_FILE_CONTENT" > "$env_file_tmp"
+
+          scp \
+            -i ~/.ssh/deploy_key \
+            -P "$SSH_PORT" \
+            -o StrictHostKeyChecking=yes \
+            "$env_file_tmp" \
+            "$SSH_USER@$SSH_HOST:$PROJECT_DIRECTORY/$ENV_FILE"
+
+          remote_env=$(printf 'PROJECT_DIRECTORY=%q ENV_FILE=%q' \
+            "$PROJECT_DIRECTORY" \
+            "$ENV_FILE")
+
+          ssh \
+            -i ~/.ssh/deploy_key \
+            -p "$SSH_PORT" \
+            -o StrictHostKeyChecking=yes \
+            "$SSH_USER@$SSH_HOST" \
+            "$remote_env bash -se" <<'REMOTE'
+          set -euo pipefail
+          chmod 600 "$PROJECT_DIRECTORY/$ENV_FILE"
+          REMOTE
 
       - name: 이미지를 서버 Docker cache로 전송
         env:

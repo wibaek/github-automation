@@ -14,7 +14,6 @@ github-automation
         ├── node-ci.yaml
         ├── cloudflare-pages-deploy.yaml
         ├── cloudflare-workers-deploy.yaml
-        ├── docker-build-push.yaml
         ├── docker-build-ghcr-push.yaml
         ├── docker-build-ecr-push.yaml
         ├── docker-build-docker-hub-push.yaml
@@ -33,7 +32,6 @@ github-automation
 | `docker-build-ghcr-push.yaml` | GHCR Docker image build/push |
 | `docker-build-ecr-push.yaml` | Amazon ECR Docker image build/push |
 | `docker-build-docker-hub-push.yaml` | Docker Hub image build/push |
-| `docker-build-push.yaml` | Generic Docker image build/push. 새 workflow에서는 registry별 workflow를 우선 사용 |
 | `release.yaml` | Release PR, tag, GitHub Release, CHANGELOG |
 | `ecs-deploy.yaml` | ECS service deploy |
 | `ssh-compose-image-load-deploy.yaml` | Actions runner에서 image pull 후 SSH로 Docker image와 compose file을 전송하는 deploy |
@@ -90,7 +88,7 @@ sequenceDiagram
     Server->>Server: docker compose up -d --no-build
     Server->>Server: healthcheck
   else Docker Hub or registry with server credential
-    Actions->>Registry: docker-build-docker-hub-push.yaml or docker-build-push.yaml
+    Actions->>Registry: docker-build-docker-hub-push.yaml or docker-build-ghcr-push.yaml
     Actions->>Server: ssh-compose-deploy.yaml
     Server->>Registry: docker compose pull
     Server->>Server: docker compose up -d --no-build
@@ -122,6 +120,7 @@ jobs:
 - Docker image push에는 registry에 맞는 권한을 추가합니다. GHCR은 `packages: write`, ECR/ECS는 `id-token: write`가 필요합니다.
 - secrets는 호출하는 workflow에서 명시적으로 넘깁니다.
 - GHCR private image를 단일 VM에 배포할 때는 `docker-build-ghcr-push.yaml` 뒤에 `ssh-compose-image-load-deploy.yaml`을 붙입니다.
+- SSH Compose 배포는 `compose-source-file`로 compose 파일을 업로드하고, `ENV_FILE_CONTENT` secret을 `env-file` 경로로 업로드할 수 있습니다.
 - `ssh-compose-image-load-deploy.yaml`은 서버에서 `docker compose up --pull never`를 강제합니다. caller repo의 compose service도 `image: ${IMAGE_REF}`와 `pull_policy: never`를 사용합니다.
 - 서버가 registry credential을 직접 관리하는 경우에는 registry별 build/push workflow 뒤에 `ssh-compose-deploy.yaml`을 붙입니다.
 - ECS 배포는 `docker-build-ecr-push.yaml` 뒤에 `ecs-deploy.yaml`을 붙입니다.
@@ -147,4 +146,5 @@ git push origin v1.0
 
 - GitHub Actions 기본 개념: [docs/01_github_actions.md](docs/01_github_actions.md)
 - Docker build cache와 고급 예시: [docs/02_github_actions_advanced.md](docs/02_github_actions_advanced.md)
+- SSH 배포 서버 준비: [docs/03_ssh_deploy_setup.md](docs/03_ssh_deploy_setup.md)
 - 프로젝트별 호출 예시: [docs/workflow-uses](docs/workflow-uses)

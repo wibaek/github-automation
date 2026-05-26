@@ -12,9 +12,9 @@
 | `docker-build-ghcr-push.yaml` | `.github/workflows/docker-build-ghcr-push.yaml` | GHCR Docker 이미지 빌드 및 push |
 | `docker-build-ecr-push.yaml` | `.github/workflows/docker-build-ecr-push.yaml` | ECR Docker 이미지 빌드 및 push |
 | `docker-build-docker-hub-push.yaml` | `.github/workflows/docker-build-docker-hub-push.yaml` | Docker Hub 이미지 빌드 및 push |
-| `docker-build-push.yaml` | `.github/workflows/docker-build-push.yaml` | 기존 generic Docker 이미지 빌드 및 registry push |
 | `release.yaml` | `.github/workflows/release.yaml` | Release PR, tag, GitHub Release, CHANGELOG |
-| `ssh-compose-deploy.yaml` | `.github/workflows/ssh-compose-deploy.yaml` | 서버가 registry에서 직접 pull하는 SSH Docker Compose 배포 |
+| `ssh-compose-deploy.yaml` | `.github/workflows/ssh-compose-deploy.yaml` | compose/env를 업로드하고 서버가 registry에서 직접 pull하는 SSH Docker Compose 배포 |
+| `ssh-compose-image-load-deploy.yaml` | `.github/workflows/ssh-compose-image-load-deploy.yaml` | compose/env와 이미지를 runner에서 서버에 전송하는 SSH Docker Compose 배포 |
 | `docker-ghcr-ssh-deploy.yaml` | `docker-build-ghcr-push.yaml`, `ssh-compose-image-load-deploy.yaml` | GHCR 이미지 빌드 후 runner에서 pull하고 서버에는 image와 compose file 전송 |
 | `ecs-ecr-deploy.yaml` | `docker-build-ecr-push.yaml`, `ecs-deploy.yaml` | ECR 이미지 빌드 후 ECS service 배포 |
 

@@ -546,11 +546,13 @@ jobs:
       project-directory: "/srv/my-app"
       compose-source-file: "docker-compose.yml"
       compose-file: "docker-compose.yml"
+      env-file: ".env"
       image-reference: ${{ needs.docker-build-ghcr-push.outputs.image-reference }}
       local-image-name: "my-app"
       service: "app"
     secrets:
       SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+      ENV_FILE_CONTENT: ${{ secrets.ENV_FILE_CONTENT }}
 ```
 
 dev, stage, prod는 같은 reusable workflow를 호출하되 `environment`, host, path, cluster, service 같은 input만 환경별로 바꿉니다.
@@ -562,6 +564,8 @@ concurrency:
   group: deploy-${{ github.repository }}-prod
   cancel-in-progress: false
 ```
+
+SSH 배포 서버 유저와 key 준비 절차는 [SSH 배포 서버 준비](03_ssh_deploy_setup.md)를 봅니다.
 
 ## Cache
 

@@ -48,3 +48,4 @@ jobs:
       healthcheck-url: "http://127.0.0.1:8000/health"
     secrets:
       SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+      ENV_FILE_CONTENT: ${{ secrets.ENV_FILE_CONTENT }}

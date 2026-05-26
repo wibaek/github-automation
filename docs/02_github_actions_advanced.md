@@ -23,7 +23,6 @@ Docker Buildx의 cache backend를 명시해야 다음 workflow run에서 이전 
 | `.github/workflows/docker-build-ghcr-push.yaml` | GHCR Docker Buildx 기반 이미지 빌드, cache, push |
 | `.github/workflows/docker-build-ecr-push.yaml` | ECR Docker Buildx 기반 이미지 빌드, cache, push |
 | `.github/workflows/docker-build-docker-hub-push.yaml` | Docker Hub Docker Buildx 기반 이미지 빌드, cache, push |
-| `.github/workflows/docker-build-push.yaml` | 기존 generic Docker Buildx 기반 이미지 빌드, cache, registry push |
 | `.github/workflows/ssh-compose-image-load-deploy.yaml` | Actions runner에서 registry pull 후 SSH로 image와 compose file 전송, `docker compose up -d --no-build`, healthcheck |
 | `.github/workflows/ssh-compose-deploy.yaml` | 서버 registry credential로 `docker compose pull`, `docker compose up -d --no-build`, healthcheck |
 | `.github/workflows/ecs-deploy.yaml` | ECS task definition 렌더링 후 service update |
@@ -43,7 +42,7 @@ jobs:
 ```
 
 GHCR private image를 단일 VM에 배포할 때는 서버가 GHCR에 로그인하지 않게 두는 편이 깔끔합니다.
-빌드한 image reference를 runner에서 pull한 뒤, Docker image tar stream과 compose file만 서버로 전송합니다.
+빌드한 image reference를 runner에서 pull한 뒤, Docker image tar stream, compose file, env file을 서버로 전송합니다.
 
 ```yaml
 jobs:
@@ -69,15 +68,17 @@ jobs:
       project-directory: "/srv/my-app"
       compose-source-file: "docker-compose.yml"
       compose-file: "docker-compose.yml"
+      env-file: ".env"
       image-reference: ${{ needs.docker-build-ghcr-push.outputs.image-reference }}
       local-image-name: "my-app"
       service: "app"
       healthcheck-url: "http://127.0.0.1:8000/health"
     secrets:
       SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+      ENV_FILE_CONTENT: ${{ secrets.ENV_FILE_CONTENT }}
 ```
 
-서버 compose 파일은 workflow가 매번 업로드합니다. runtime secret이 들어 있는 `.env` 파일은 repository에서 올리지 않고 서버에 유지한 뒤 `env-file` input으로 참조합니다.
+서버 compose 파일은 workflow가 매번 업로드합니다. runtime secret이 들어 있는 `.env` 파일은 repository에 커밋하지 않고 GitHub Environment Secret의 `ENV_FILE_CONTENT`에 저장한 뒤 `env-file` input 경로로 업로드합니다.
 compose 파일에서는 `IMAGE_REF` 환경 변수를 local image reference로 사용합니다. 서버가 registry에 접근하지 않도록 workflow는 `docker compose up --pull never`를 강제하고, compose 파일에도 `pull_policy: never`를 같이 둡니다.
 
 ```yaml
@@ -90,6 +91,7 @@ services:
 
 이 방식에서는 VM에 `docker login ghcr.io`가 필요하지 않습니다. `GITHUB_TOKEN`은 Actions runner의 registry login에만 쓰이고, 서버에는 전달되지 않습니다.
 VM architecture가 runner와 다르면 `pull-platform: "linux/arm64"`처럼 서버에 맞는 platform을 명시합니다.
+SSH 배포 유저와 key 준비 절차는 [SSH 배포 서버 준비](03_ssh_deploy_setup.md)를 봅니다.
 
 ## GHCR에 이미지 빌드 및 푸시
 
